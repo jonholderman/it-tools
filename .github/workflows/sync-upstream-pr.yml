@@ -46,6 +46,8 @@ jobs:
             pr_user_login=$(_jq '.user.login')
 
             branch_name="pr-$pr_number"
+            
+            echo "Processing PR #$pr_number: $pr_title"
 
             # Check if the PR already exists in the forked repository
             if echo "$fork_prs" | jq -e --arg bn "$branch_name" '.[] | select(.head.ref == $bn)' > /dev/null; then
@@ -70,11 +72,22 @@ jobs:
               continue
             fi
 
+            echo "Creating branch $branch_name for PR #$pr_number"
             git checkout -b $branch_name upstream-pr/$pr_number
             git push origin $branch_name
 
             # Create a PR in the forked repository with the same title and body
-            curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+            echo "Creating PR for branch $branch_name"
+            response=$(curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
             -d "{\"title\":\"$pr_title\",\"body\":\"$pr_body\",\"head\":\"$branch_name\",\"base\":\"main\"}" \
-            https://api.github.com/repos/jonholderman/it-tools/pulls
+            https://api.github.com/repos/jonholderman/it-tools/pulls)
+
+            echo "Response: $response"
+
+            pr_url=$(echo "$response" | jq -r '.html_url')
+            if [ "$pr_url" != "null" ]; then
+              echo "PR created: $pr_url"
+            else
+              echo "Failed to create PR for branch $branch_name"
+            fi
           done
