@@ -1,0 +1,93 @@
+name: Create Upstream PRs
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  create_prs:
+    name: Create PRs from Upstream
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Forked Repository
+        uses: actions/checkout@v2
+        with:
+          repository: jonholderman/it-tools
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Add Upstream Remote
+        run: git remote add upstream https://github.com/CorentinTh/it-tools.git
+
+      - name: Fetch All PRs from Upstream
+        run: git fetch upstream '+refs/pull/*/head:refs/remotes/upstream-pr/*'
+
+      - name: Create PRs in Forked Repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          # Fetch the list of open PRs from the upstream repository
+          upstream_prs=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              https://api.github.com/repos/CorentinTh/it-tools/pulls?state=open)
+
+          # Fetch the list of all PRs (open and closed) from your forked repository
+          fork_prs=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              https://api.github.com/repos/jonholderman/it-tools/pulls?state=all)
+
+          for pr in $(echo "$upstream_prs" | jq -r '.[] | @base64'); do
+            _jq() {
+              echo ${pr} | base64 --decode | jq -r ${1}
+            }
+
+            pr_number=$(_jq '.number')
+            pr_title=$(_jq '.title' | jq -sRr @json)
+            pr_body=$(_jq '.body' | jq -sRr @json)
+            pr_user_login=$(_jq '.user.login')
+
+            branch_name="pr-$pr_number"
+
+            echo "Processing PR #$pr_number: $pr_title"
+
+            # Check if the PR already exists in the forked repository
+            if echo "$fork_prs" | jq -e --arg bn "$branch_name" '.[] | select(.head.ref == $bn)' > /dev/null; then
+              echo "PR with branch $branch_name already exists. Skipping..."
+              continue
+            fi
+
+            # Check if the PR has been merged by comparing the commits
+            pr_commits=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              https://api.github.com/repos/CorentinTh/it-tools/pulls/$pr_number/commits | jq -r '.[].sha')
+
+            merged=false
+            for commit in $pr_commits; do
+              if git log --format=%H | grep -q $commit; then
+                merged=true
+                echo "PR #$pr_number has already been merged. Skipping..."
+                break
+              fi
+            done
+
+            if [ "$merged" = true ]; then
+              continue
+            fi
+
+            echo "Creating branch $branch_name for PR #$pr_number"
+            git checkout -b $branch_name upstream-pr/$pr_number
+            git push origin $branch_name
+
+            # Create a PR in the forked repository with the same title and body
+            echo "Creating PR for branch $branch_name"
+            response=$(curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+            -d "{\"title\":$pr_title,\"body\":$pr_body,\"head\":\"$branch_name\",\"base\":\"main\"}" \
+            https://api.github.com/repos/jonholderman/it-tools/pulls)
+
+            echo "Response: $response"
+
+            pr_url=$(echo "$response" | jq -r '.html_url')
+            if [ "$pr_url" != "null" ]; then
+              echo "PR created: $pr_url"
+            else
+              echo "Failed to create PR for branch $branch_name"
+            fi
+          done
