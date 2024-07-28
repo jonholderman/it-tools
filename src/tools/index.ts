@@ -6,6 +6,7 @@ import { tool as asciiTextDrawer } from './ascii-text-drawer';
 
 import { tool as textToUnicode } from './text-to-unicode';
 import { tool as safelinkDecoder } from './safelink-decoder';
+import { tool as imageToCss } from './image-to-css';
 import { tool as apiTester } from './api-tester';
 import { tool as textToUnicodeNames } from './text-to-unicode-names';
 import { tool as pdfSignatureChecker } from './pdf-signature-checker';
@@ -131,6 +132,7 @@ export const toolsByCategory: ToolCategory[] = [
       httpStatusCodes,
       jsonDiff,
       safelinkDecoder,
+      imageToCss,
       apiTester,
     ],
   },
