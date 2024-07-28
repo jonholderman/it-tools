@@ -7,6 +7,7 @@ import { tool as asciiTextDrawer } from './ascii-text-drawer';
 import { tool as textToUnicode } from './text-to-unicode';
 import { tool as safelinkDecoder } from './safelink-decoder';
 import { tool as sensitiveDataMasker } from './sensitive-data-masker';
+import { tool as textToUnicodeNames } from './text-to-unicode-names';
 import { tool as pdfSignatureChecker } from './pdf-signature-checker';
 import { tool as numeronymGenerator } from './numeronym-generator';
 import { tool as macAddressGenerator } from './mac-address-generator';
@@ -101,6 +102,7 @@ export const toolsByCategory: ToolCategory[] = [
       textToNatoAlphabet,
       textToBinary,
       textToUnicode,
+      textToUnicodeNames,
       yamlToJson,
       yamlToToml,
       jsonToYaml,
