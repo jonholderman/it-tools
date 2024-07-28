@@ -41,12 +41,12 @@ jobs:
             }
 
             pr_number=$(_jq '.number')
-            pr_title=$(_jq '.title')
-            pr_body=$(_jq '.body')
+            pr_title=$(_jq '.title' | jq -sRr @json)
+            pr_body=$(_jq '.body' | jq -sRr @json)
             pr_user_login=$(_jq '.user.login')
 
             branch_name="pr-$pr_number"
-            
+
             echo "Processing PR #$pr_number: $pr_title"
 
             # Check if the PR already exists in the forked repository
@@ -79,7 +79,7 @@ jobs:
             # Create a PR in the forked repository with the same title and body
             echo "Creating PR for branch $branch_name"
             response=$(curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
-            -d "{\"title\":\"$pr_title\",\"body\":\"$pr_body\",\"head\":\"$branch_name\",\"base\":\"main\"}" \
+            -d "{\"title\":$pr_title,\"body\":$pr_body,\"head\":\"$branch_name\",\"base\":\"main\"}" \
             https://api.github.com/repos/jonholderman/it-tools/pulls)
 
             echo "Response: $response"
